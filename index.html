@@ -1,62 +1,289 @@
-.nc-scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;opacity:0;pointer-events:none;transition:opacity .25s}
-.nc-scrim.on{opacity:1;pointer-events:auto}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NeonCut — AI Video Editor (Mobile UI)</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;font-family:-apple-system,'Segoe UI',Inter,Roboto,sans-serif}
+  :root{
+    --violet:#8b5cf6; --cyan:#22d3ee; --pink:#f472b6;
+    --glass:rgba(255,255,255,.07); --glass2:rgba(255,255,255,.11);
+    --stroke:rgba(255,255,255,.14); --txt:#eef0ff; --mut:#9aa3c0;
+  }
+  body{
+    min-height:100vh; background:#05060c; display:flex; align-items:center; justify-content:center;
+    padding:24px; color:var(--txt); overflow:hidden; position:relative;
+  }
+  /* ambient neon blobs */
+  .blob{position:fixed;border-radius:50%;filter:blur(110px);opacity:.5;pointer-events:none;z-index:0}
+  .b1{width:520px;height:520px;background:#6d28d9;top:-160px;left:-120px;animation:fl1 14s ease-in-out infinite alternate}
+  .b2{width:460px;height:460px;background:#0e7490;bottom:-140px;right:-100px;animation:fl2 17s ease-in-out infinite alternate}
+  .b3{width:340px;height:340px;background:#be185d;top:38%;left:55%;opacity:.32;animation:fl1 20s ease-in-out infinite alternate-reverse}
+  @keyframes fl1{to{transform:translate(60px,40px) scale(1.12)}}
+  @keyframes fl2{to{transform:translate(-50px,-60px) scale(1.08)}}
 
-.nc-sheet{
-  position:fixed;left:50%;bottom:0;width:min(392px,100vw);max-height:82vh;overflow-y:auto;z-index:901;
-  transform:translate(-50%,105%);transition:transform .3s cubic-bezier(.2,.9,.3,1);
-  padding:10px 18px 26px;border-radius:26px 26px 0 0;color:var(--txt);
-  background:linear-gradient(180deg,rgba(26,28,52,.97),rgba(10,11,22,.99));
-  border:1px solid var(--stroke);border-bottom:none;box-shadow:0 -20px 60px rgba(0,0,0,.6),0 0 60px rgba(139,92,246,.2);
-}
-.nc-sheet.on{transform:translate(-50%,0)}
-.nc-grab{width:42px;height:4px;border-radius:4px;background:rgba(255,255,255,.22);margin:0 auto 14px}
-.nc-sheet h3{font-size:15px;font-weight:800;letter-spacing:.2px;margin-bottom:4px}
-.nc-sheet p.nc-sub{font-size:11.5px;color:var(--mut);line-height:1.5;margin-bottom:14px}
-.nc-sheet p.nc-warn{font-size:11px;color:#fbbf24;line-height:1.5;margin:-4px 0 12px}
+  /* phone frame */
+  .phone{
+    position:relative;z-index:2;width:392px;height:852px;max-height:94vh;
+    background:linear-gradient(165deg,rgba(20,22,40,.92),rgba(8,9,18,.96));
+    border-radius:44px;border:1px solid rgba(255,255,255,.16);
+    box-shadow:0 0 0 8px rgba(255,255,255,.04),0 40px 90px rgba(0,0,0,.75),0 0 90px rgba(139,92,246,.22);
+    overflow:hidden;display:flex;flex-direction:column;
+  }
+  .notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:120px;height:26px;background:#000;border-radius:20px;z-index:60;border:1px solid #ffffff12}
 
-.nc-row{display:flex;gap:8px;margin-bottom:12px}
-.nc-chip{
-  flex:1;text-align:center;font-size:12px;font-weight:700;padding:11px 6px;border-radius:14px;cursor:pointer;
-  background:var(--glass);border:1px solid var(--stroke);color:var(--mut);transition:.18s;
-}
-.nc-chip.sel{color:#fff;border-color:rgba(167,139,250,.75);background:linear-gradient(135deg,rgba(139,92,246,.34),rgba(34,211,238,.2));box-shadow:0 0 18px rgba(139,92,246,.35)}
-.nc-lbl{font-size:10px;font-weight:800;letter-spacing:1.4px;color:var(--mut);margin:2px 0 7px;text-transform:uppercase}
+  /* header */
+  .statusbar{height:52px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 4px;font-size:13px;font-weight:600;color:var(--mut)}
+  .header{display:flex;align-items:center;gap:12px;padding:8px 18px 12px}
+  .icon-btn{
+    width:38px;height:38px;border-radius:13px;display:grid;place-items:center;cursor:pointer;flex-shrink:0;
+    background:var(--glass);border:1px solid var(--stroke);backdrop-filter:blur(18px);transition:.2s;
+  }
+  .icon-btn:active{transform:scale(.9)}
+  .icon-btn svg{stroke:var(--txt)}
+  .title{flex:1;min-width:0}
+  .title h1{font-size:15px;font-weight:700;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .title p{font-size:11px;color:var(--mut);margin-top:2px;display:flex;align-items:center;gap:5px}
+  .title p i{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);display:inline-block}
+  .export{
+    border:none;cursor:pointer;display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:#0b0714;
+    padding:11px 18px;border-radius:14px;background:linear-gradient(135deg,#a78bfa,#22d3ee);
+    box-shadow:0 0 22px rgba(139,92,246,.55),0 6px 18px rgba(34,211,238,.3);transition:.2s;
+  }
+  .export:active{transform:scale(.93)}
 
-.nc-btn{
-  width:100%;border:none;cursor:pointer;font-size:13.5px;font-weight:800;color:#0b0714;padding:14px;border-radius:15px;margin-top:4px;
-  background:linear-gradient(135deg,#a78bfa,#22d3ee);box-shadow:0 0 22px rgba(139,92,246,.5);transition:.18s;
-}
-.nc-btn:active{transform:scale(.97)}
-.nc-btn.ghost{background:var(--glass);color:var(--txt);box-shadow:none;border:1px solid var(--stroke);margin-top:8px}
+  /* preview */
+  .stage{padding:2px 18px 0;position:relative}
+  .preview{
+    position:relative;aspect-ratio:16/9;border-radius:22px;overflow:hidden;
+    background:radial-gradient(120% 140% at 30% 20%,#2b1a63,#0b0d1c 65%);
+    border:1px solid var(--stroke);box-shadow:inset 0 0 60px rgba(139,92,246,.14),0 18px 40px rgba(0,0,0,.5);
+  }
+  .pv-grid{position:absolute;inset:0;background:
+    linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
+    background-size:44px 44px;mask-image:radial-gradient(circle at 50% 45%,#000 30%,transparent 78%)}
+  .pv-glow{position:absolute;width:200px;height:200px;border-radius:50%;filter:blur(50px);opacity:.55}
+  .g1{background:#7c3aed;top:-50px;right:-30px}.g2{background:#0891b2;bottom:-70px;left:-40px}
+  .pill{
+    position:absolute;display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:.6px;
+    padding:7px 12px;border-radius:30px;background:rgba(10,12,24,.45);border:1px solid var(--stroke);
+    backdrop-filter:blur(16px);text-transform:uppercase;
+  }
+  .pill svg{stroke:var(--cyan)}
+  .pl{top:12px;left:12px;color:var(--cyan)}
+  .pr{top:12px;right:12px;color:var(--txt)}
+  .pr b{color:var(--cyan)}
+  .caption-live{
+    position:absolute;bottom:14px;left:50%;transform:translateX(-50%);max-width:86%;text-align:center;
+    font-size:13px;font-weight:700;padding:8px 16px;border-radius:12px;background:rgba(0,0,0,.45);
+    border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(12px);text-shadow:0 2px 10px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .caption-live u{text-decoration:none;color:#67e8f9}
+  .playfab{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:66px;height:66px;border-radius:50%;
+    display:grid;place-items:center;cursor:pointer;background:rgba(139,92,246,.22);border:1.5px solid rgba(167,139,250,.7);
+    backdrop-filter:blur(14px);box-shadow:0 0 34px rgba(139,92,246,.65),inset 0 0 22px rgba(139,92,246,.35);transition:.2s;
+  }
+  .playfab:active{transform:translate(-50%,-50%) scale(.88)}
+  .playfab svg{fill:#e9d5ff;stroke:none;margin-left:4px}
+  .pv-progress{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.12)}
+  .pv-progress i{display:block;height:100%;width:38%;background:linear-gradient(90deg,var(--violet),var(--cyan));box-shadow:0 0 12px var(--cyan)}
+  .timecode{display:flex;justify-content:center;gap:6px;font-size:11px;color:var(--mut);margin-top:9px;font-variant-numeric:tabular-nums}
+  .timecode b{color:var(--txt)}
 
-.nc-in{
-  width:100%;padding:12px 13px;border-radius:13px;font-size:13px;color:var(--txt);margin-bottom:10px;outline:none;
-  background:var(--glass);border:1px solid var(--stroke);
-}
-.nc-in:focus{border-color:rgba(167,139,250,.75)}
+  /* AI quick cards */
+  .ai-row{display:flex;gap:10px;padding:14px 18px 4px}
+  .ai-card{
+    flex:1;border-radius:18px;padding:13px 8px 11px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;
+    background:var(--glass);border:1px solid var(--stroke);backdrop-filter:blur(18px);transition:.2s;position:relative;overflow:hidden;
+  }
+  .ai-card::before{content:'';position:absolute;top:-40%;left:-40%;width:80%;height:80%;background:radial-gradient(circle,rgba(255,255,255,.14),transparent 70%)}
+  .ai-card:active{transform:scale(.93)}
+  .ai-card.sel{border-color:rgba(167,139,250,.75);box-shadow:0 0 24px rgba(139,92,246,.4),inset 0 0 18px rgba(139,92,246,.14)}
+  .ai-ico{width:42px;height:42px;border-radius:14px;display:grid;place-items:center}
+  .ai-card:nth-child(1) .ai-ico{background:linear-gradient(135deg,rgba(139,92,246,.4),rgba(244,114,182,.3));box-shadow:0 0 18px rgba(167,139,250,.5)}
+  .ai-card:nth-child(2) .ai-ico{background:linear-gradient(135deg,rgba(34,211,238,.32),rgba(139,92,246,.28));box-shadow:0 0 18px rgba(34,211,238,.45)}
+  .ai-card:nth-child(3) .ai-ico{background:linear-gradient(135deg,rgba(244,114,182,.34),rgba(34,211,238,.28));box-shadow:0 0 18px rgba(244,114,182,.45)}
+  .ai-ico svg{stroke:#fff}
+  .ai-card span{font-size:11px;font-weight:700}
+  .ai-card em{font-style:normal;font-size:9px;font-weight:800;letter-spacing:1px;padding:3px 8px;border-radius:20px;color:#0b0714}
+  .ai-card:nth-child(1) em{background:#c4b5fd}.ai-card:nth-child(2) em{background:#67e8f9}.ai-card:nth-child(3) em{background:#f9a8d4}
 
-.nc-bar{height:8px;border-radius:8px;background:rgba(255,255,255,.12);overflow:hidden;margin:8px 0 10px}
-.nc-bar i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--violet),var(--cyan));box-shadow:0 0 12px var(--cyan);transition:width .35s}
-.nc-bar.indet i{width:35%;animation:ncslide 1.2s ease-in-out infinite alternate}
-@keyframes ncslide{from{margin-left:0}to{margin-left:65%}}
-.nc-msg{font-size:12px;color:var(--mut);min-height:18px}
+  /* timeline */
+  .tl-wrap{padding:12px 18px 0}
+  .tl-head{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:800;letter-spacing:1.6px;color:var(--mut);margin-bottom:8px}
+  .tl-head b{color:#67e8f9;letter-spacing:.5px}
+  .timeline{
+    display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;
+  }
+  .timeline::-webkit-scrollbar{display:none}
+  .seg{
+    flex-shrink:0;height:56px;border-radius:13px;position:relative;overflow:hidden;cursor:grab;
+    border:1px solid rgba(255,255,255,.16);display:flex;align-items:flex-end;padding:7px 9px;
+    font-size:9.5px;font-weight:700;color:#fff;
+  }
+  .seg i{position:absolute;top:6px;left:8px;opacity:.85}
+  .s-vid{width:118px;background:linear-gradient(135deg,rgba(109,40,217,.75),rgba(139,92,246,.5))}
+  .s-cap{width:96px;background:linear-gradient(135deg,rgba(8,145,178,.7),rgba(34,211,238,.42))}
+  .s-aud{width:104px;background:linear-gradient(135deg,rgba(190,24,93,.6),rgba(244,114,182,.4))}
+  .s-tpl{width:82px;background:linear-gradient(135deg,rgba(167,139,250,.55),rgba(34,211,238,.35))}
+  .seg .wave{position:absolute;inset:0;opacity:.5}
+  .playdot{position:absolute;top:0;bottom:0;left:42%;width:2px;background:#f472b6;box-shadow:0 0 10px #f472b6;z-index:3}
+  .playdot::before{content:'';position:absolute;top:-1px;left:-4px;border:5px solid transparent;border-top:7px solid #f472b6}
 
-.nc-item{
-  display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px;border-radius:15px;margin-bottom:8px;cursor:pointer;
-  background:var(--glass);border:1px solid var(--stroke);font-size:13px;font-weight:700;
-}
-.nc-item small{display:block;font-size:10.5px;color:var(--mut);font-weight:600;margin-top:2px}
-.nc-item:active{transform:scale(.98)}
-.nc-item b{color:#67e8f9;font-size:11px;letter-spacing:.6px}
+  /* tool dock */
+  .dock{
+    margin-top:auto;padding:12px 14px 22px;background:linear-gradient(180deg,transparent,rgba(5,6,12,.85) 26%);
+  }
+  .dock-inner{
+    display:flex;gap:4px;overflow-x:auto;padding:10px 8px;border-radius:22px;scrollbar-width:none;
+    background:var(--glass);border:1px solid var(--stroke);backdrop-filter:blur(22px) saturate(150%);
+    box-shadow:0 -6px 30px rgba(0,0,0,.35);
+  }
+  .dock-inner::-webkit-scrollbar{display:none}
+  .tool{
+    flex-shrink:0;width:64px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:9px 0 7px;
+    border-radius:16px;cursor:pointer;color:var(--mut);transition:.18s;border:1px solid transparent;
+  }
+  .tool svg{stroke:currentColor}
+  .tool span{font-size:9.5px;font-weight:700;letter-spacing:.3px}
+  .tool:active{transform:scale(.88)}
+  .tool.sel{color:#fff;background:linear-gradient(135deg,rgba(139,92,246,.34),rgba(34,211,238,.2));border-color:rgba(167,139,250,.5);box-shadow:0 0 18px rgba(139,92,246,.35)}
+  .addfab{
+    flex-shrink:0;width:64px;display:grid;place-items:center;cursor:pointer;
+  }
+  .addfab div{
+    width:46px;height:46px;border-radius:16px;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--violet),var(--cyan));box-shadow:0 0 22px rgba(139,92,246,.6);transition:.18s;
+  }
+  .addfab:active div{transform:scale(.85)}
+</style>
+</head>
+<body>
 
-.nc-toast{
-  position:fixed;left:50%;bottom:118px;transform:translateX(-50%) translateY(10px);z-index:999;max-width:80vw;text-align:center;
-  background:rgba(10,12,24,.88);border:1px solid var(--stroke);backdrop-filter:blur(16px);color:var(--txt);
-  font-size:12px;font-weight:700;padding:10px 16px;border-radius:14px;opacity:0;pointer-events:none;transition:.25s;
-}
-.nc-toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
 
-.nc-video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;display:none}
-.nc-video.on{display:block}
-.preview.has-video .pv-grid,.preview.has-video .pv-glow{display:none}
-.nc-hidden{visibility:hidden}
+<div class="phone">
+  <div class="notch"></div>
+
+  <!-- status + header -->
+  <div class="statusbar"><span>9:41</span><span>LTE&nbsp;&nbsp;▮▮▮</span></div>
+  <div class="header">
+    <div class="icon-btn"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+    <div class="title">
+      <h1>Midnight Vlog Cut</h1>
+      <p><i></i>Auto-saved &nbsp;·&nbsp; 2m 14s</p>
+    </div>
+    <div class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></div>
+    <button class="export">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0b0714" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>
+      Export
+    </button>
+  </div>
+
+  <!-- preview stage -->
+  <div class="stage">
+    <div class="preview">
+      <div class="pv-grid"></div>
+      <div class="pv-glow g1"></div><div class="pv-glow g2"></div>
+
+      <div class="pill pl">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.6L20 10l-6.1 1.4L12 17l-1.9-5.6L4 10l6.1-1.4z"/></svg>
+        AI Enhance · On
+      </div>
+      <div class="pill pr">Preview <b>1080p</b></div>
+
+      <div class="playfab"><svg width="26" height="26" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></div>
+
+      <div class="caption-live">Namaste doston, <u>aaj ka vlog</u> shuru karte hain</div>
+      <div class="pv-progress"><i></i></div>
+    </div>
+    <div class="timecode"><b>00:47</b><span>/</span>02:14</div>
+  </div>
+
+  <!-- AI quick tools -->
+  <div class="ai-row">
+    <div class="ai-card sel">
+      <div class="ai-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2m0 20v-2M8 9h-2m12 0h-2M11.5 6.5L9 4m5 5l2.5-2.5M4 15l5 5 11-11-5-5z"/></svg></div>
+      <span>Auto Captions</span><em>AI</em>
+    </div>
+    <div class="ai-card">
+      <div class="ai-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><path d="M13 13h3v3h-3zM18 13h3v3h-3zM13 18h3v3h-3zM18 18h3v3h-3z"/></svg></div>
+      <span>Templates</span><em>HOT</em>
+    </div>
+    <div class="ai-card">
+      <div class="ai-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
+      <span>Upscale</span><em>4K</em>
+    </div>
+  </div>
+
+  <!-- timeline -->
+  <div class="tl-wrap">
+    <div class="tl-head"><span>TIMELINE</span><b>AI SYNC 98%</b></div>
+    <div class="timeline">
+      <div class="seg s-tpl"><i>◆</i>Intro Template</div>
+      <div class="seg s-vid"><i>▸</i>Beach_Shot.mp4</div>
+      <div class="seg s-cap"><i>‹Aa›</i>AI Caption · Hindi</div>
+      <div class="seg s-vid"><i>▸</i>City_Lapse.mp4</div>
+      <div class="seg s-aud">
+        <svg class="wave" viewBox="0 0 104 56" preserveAspectRatio="none"><path d="M0,28 Q6,10 12,28 T24,28 T36,28 T48,28 T60,28 T72,28 T84,28 T96,28 T108,28" stroke="#fff" fill="none" stroke-width="2"/></svg>
+        <span style="position:relative">Beat_Music.mp3</span>
+      </div>
+      <div class="seg s-cap"><i>‹Aa›</i>Caption · EN</div>
+      <div class="seg s-vid"><i>▸</i>Outro.mp4</div>
+      <div class="playdot"></div>
+    </div>
+  </div>
+
+  <!-- bottom tool dock -->
+  <div class="dock">
+    <div class="dock-inner">
+      <div class="addfab"><div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0b0714" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>
+      <div class="tool sel">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M6 16l4-10 4 7 2-4 2 7"/></svg>
+        <span>Edit</span>
+      </div>
+      <div class="tool">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 8L20 20M8.5 16L20 4"/></svg>
+        <span>Split</span>
+      </div>
+      <div class="tool">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 1 1 9-9"/><path d="M12 12l4-4"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg>
+        <span>Speed</span>
+      </div>
+      <div class="tool">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg>
+        <span>Audio</span>
+      </div>
+      <div class="tool">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M5 6V4h3v2M12 6V4h3v2M19 6V4h-3v2M5 20v-2M5 14v-2M5 8v2M19 20v-2M19 14v-2M19 8v2M12 20v-2M12 14v-2M12 8v2"/></svg>
+        <span>Text</span>
+      </div>
+      <div class="tool">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="7" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+        <span>Filters</span>
+      </div>
+      <div class="tool">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.9 2.6L22.5 18.5l-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9z"/></svg>
+        <span>Effects</span>
+      </div>
+      <div class="tool">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 5-9 5-9-5z"/><path d="M3 12l9 5 9-5M3 17l9 5 9-5"/></svg>
+        <span>Layers</span>
+      </div>
+      <div class="tool">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+        <span>Format</span>
+      </div>
+      <div class="tool">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.4-1.2 3.9-2.3 5.2-.8 1-1.7 2-1.7 3.8h-6c0-1.8-.9-2.8-1.7-3.8C6.2 12.9 5 11.4 5 9a7 7 0 0 1 7-7z"/><path d="M9 21h6"/></svg>
+        <span>Chroma</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
